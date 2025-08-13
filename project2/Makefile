@@ -1,10 +1,10 @@
-# Simple Makefile for project2
+# Simple Makefile for project2-new
 CXX = g++
-CXXFLAGS = -std=c++20 -Wall -O2
-OUT = out
+CXXFLAGS = -std=c++20 -Wall -O2 -Iinclude
 TARGET = main
-SOURCES = main.cpp Mesh.cpp
+SOURCES = src/main.cpp src/Matrix4x4.cpp src/Mesh.cpp
 LIBS = -lglfw -lGLEW -lGL -lEGL -lm
+OUT = out
 
 # Build target
 $(TARGET): $(SOURCES)
@@ -20,4 +20,4 @@ clean:
 run: $(TARGET)
 	./$(OUT)/$(TARGET)
 
-.PHONY: clean run
+.PHONY: clean run 
