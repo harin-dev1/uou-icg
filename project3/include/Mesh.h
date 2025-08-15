@@ -8,6 +8,7 @@
 
 struct Vertex {
     Vec3f position;
+    Vec3f normal;
 };
 
 class Mesh {
@@ -18,6 +19,7 @@ class Mesh {
     GLuint m_vbo;
     GLuint m_ibo;
     GLuint m_mvp_uniform_location;
+    GLuint m_mv_uniform_location;
     GLuint m_shader_program;
     bool load_mesh(const std::string& filename);
     void calculate_bounding_box_center();
@@ -26,6 +28,6 @@ class Mesh {
     public:
     Mesh(const std::string& filename, GLuint shader_program);
     ~Mesh();
-    void draw(const Matrix4x4& mvp);
+    void draw(const Matrix4x4& mvp, const Matrix4x4& mv);
     Vec3f get_bounding_box_center() const;
 };

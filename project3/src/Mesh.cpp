@@ -17,9 +17,13 @@ Mesh::Mesh(const std::string& filename, GLuint shader_program) {
     glVertexArrayAttribFormat(m_vao, 0, 3, GL_FLOAT, GL_FALSE, 0);
     glVertexArrayAttribBinding(m_vao, 0, 0);
     glEnableVertexArrayAttrib(m_vao, 0);
+    glVertexArrayAttribFormat(m_vao, 1, 3, GL_FLOAT, GL_FALSE, 0);
+    glVertexArrayAttribBinding(m_vao, 1, 0);
+    glEnableVertexArrayAttrib(m_vao, 1);
     glVertexArrayElementBuffer(m_vao, m_ibo);
     m_shader_program = shader_program;
     m_mvp_uniform_location = glGetUniformLocation(m_shader_program, "mvp");
+    m_mv_uniform_location = glGetUniformLocation(m_shader_program, "mv");
     calculate_bounding_box_center();
 }
 
@@ -30,6 +34,7 @@ Mesh::~Mesh() {
 
 bool Mesh::load_mesh(const std::string& filename) {
     std::vector<Vec3f> positions;
+    std::vector<Vec3f> normals;
     std::unordered_map<std::string, int> indices;
     std::ifstream file(filename);
     if (!file.is_open()) {
@@ -47,25 +52,35 @@ bool Mesh::load_mesh(const std::string& filename) {
             positions.push_back(Vec3f(x, y, z));
             m_vertices.push_back(Vertex{Vec3f(x, y, z)});
         }
+        if (type == "vn") {
+            float x, y, z;
+            iss >> x >> y >> z;
+            normals.push_back(Vec3f(x, y, z));
+        }
+        // f v1/vt1/vn1 v2/vt2/vn2 v3/vt3/vn3 ...
         if (type == "f") {
             std::regex regex("((\\d+)/(\\d+)/(\\d+)) ((\\d+)/(\\d+)/(\\d+)) ((\\d+)/(\\d+)/(\\d+)) ((\\d+)/(\\d+)/(\\d+))");
             std::smatch match;
             if (std::regex_search(line, match, regex)) {
                 if (indices.find(match[1].str()) == indices.end()) {
                     indices[match[1].str()] = m_vertices.size();
-                    m_vertices.push_back(Vertex{positions[std::stoi(match[2].str()) - 1]});
+                    m_vertices.push_back(Vertex{positions[std::stoi(match[2].str()) - 1],
+                        normals[std::stoi(match[4].str()) - 1]});
                 }
                 if (indices.find(match[5].str()) == indices.end()) {
                     indices[match[5].str()] = m_vertices.size();
-                    m_vertices.push_back(Vertex{positions[std::stoi(match[6].str()) - 1]});
+                    m_vertices.push_back(Vertex{positions[std::stoi(match[6].str()) - 1],
+                        normals[std::stoi(match[8].str()) - 1]});
                 }
                 if (indices.find(match[9].str()) == indices.end()) {
                     indices[match[9].str()] = m_vertices.size();
-                    m_vertices.push_back(Vertex{positions[std::stoi(match[10].str()) - 1]});
+                    m_vertices.push_back(Vertex{positions[std::stoi(match[10].str()) - 1],
+                        normals[std::stoi(match[12].str()) - 1]});
                 }
                 if (indices.find(match[13].str()) == indices.end()) {
                     indices[match[13].str()] = m_vertices.size();
-                    m_vertices.push_back(Vertex{positions[std::stoi(match[14].str()) - 1]});
+                    m_vertices.push_back(Vertex{positions[std::stoi(match[14].str()) - 1],
+                        normals[std::stoi(match[16].str()) - 1]});
                 }
                 m_indices.push_back(indices[match[1].str()]);
                 m_indices.push_back(indices[match[5].str()]);
@@ -76,6 +91,8 @@ bool Mesh::load_mesh(const std::string& filename) {
             }
         }
     }
+    std::cout << "positions.size(): " << positions.size() << std::endl;
+    std::cout << "normals.size(): " << normals.size() << std::endl;
     return true;
 }
 
@@ -93,9 +110,10 @@ Vec3f Mesh::get_bounding_box_center() const {
     return m_bounding_box_center;
 }
 
-void Mesh::draw(const Matrix4x4& mvp) {
+void Mesh::draw(const Matrix4x4& mvp, const Matrix4x4& mv) {
     glUseProgram(m_shader_program);
     glUniformMatrix4fv(m_mvp_uniform_location, 1, GL_TRUE, mvp.data());
+    glUniformMatrix4fv(m_mv_uniform_location, 1, GL_TRUE, mv.data());
     glBindVertexArray(m_vao);
     glDrawElements(GL_TRIANGLES, m_indices.size(), GL_UNSIGNED_INT, 0);
 }

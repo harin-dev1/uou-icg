@@ -66,7 +66,7 @@ class GlApp {
         last_xpos = xpos;
         last_ypos = ypos;
         if (app->m_left_mouse_pressed) {
-            app->m_camera_yaw += delta_x * 0.01f;
+            app->m_camera_yaw -= delta_x * 0.01f;
             app->m_camera_pitch += delta_y * 0.01f;
             app->m_camera_pitch = std::clamp(app->m_camera_pitch, -3.1416f, 3.1416f);
             app->m_camera_yaw = std::clamp(app->m_camera_yaw, -3.1416f, 3.1416f);
@@ -223,7 +223,7 @@ class GlApp {
         m_rotation.set_rotation_y(m_angle);
         m_view.set_view(m_camera_distance, m_camera_yaw, m_camera_pitch);
         m_mvp = m_projection * m_view * m_rotation * m_scale * m_translation;
-        m_mesh->draw(m_mvp);
+        m_mesh->draw(m_mvp, m_view * m_rotation * m_scale * m_translation);
     }
 };
 
