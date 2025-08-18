@@ -32,7 +32,7 @@ class GlApp {
     Matrix4x4 m_scale;
     Matrix4x4 m_translation;
     GLuint m_mvp_uniform_location;
-    float m_angle;
+    float m_angle = 0.0f;
     Matrix4x4 m_view;
     Matrix4x4 m_projection;
     float z_near = 0.01f;
@@ -45,10 +45,20 @@ class GlApp {
 
     bool m_left_mouse_pressed = false;
     bool m_right_mouse_pressed = false;
-
+    bool m_orthographic = false;
+    float m_orthographic_size = 1.0f;
     static void key_callback(GLFWwindow* window, int key, int scancode, int action, int mods) {
+        GlApp* app = (GlApp*)glfwGetWindowUserPointer(window);
         if (key == GLFW_KEY_ESCAPE && action == GLFW_PRESS) {
             glfwSetWindowShouldClose(window, GLFW_TRUE);
+        }
+        if (key == GLFW_KEY_F9 && action == GLFW_PRESS) {
+            app->m_orthographic = !app->m_orthographic;
+            if (app->m_orthographic) {
+                app->m_projection.set_orthographic(-app->m_orthographic_size, app->m_orthographic_size, -app->m_orthographic_size, app->m_orthographic_size, app->z_near, app->z_far);
+            } else {
+                app->m_projection.set_perspective(app->fov, app->aspect_ratio, app->z_near, app->z_far);
+            }
         }
     }
 
@@ -71,10 +81,10 @@ class GlApp {
         last_xpos = xpos;
         last_ypos = ypos;
         if (app->m_left_mouse_pressed) {
-            app->m_camera_yaw += delta_x * 0.01f;
+            app->m_camera_yaw -= delta_x * 0.01f;
             app->m_camera_pitch += delta_y * 0.01f;
-            app->m_camera_pitch = std::clamp(app->m_camera_pitch, -3.1416f, 3.1416f);
-            app->m_camera_yaw = std::clamp(app->m_camera_yaw, -3.1416f, 3.1416f);
+            app->m_camera_pitch = std::fmod(app->m_camera_pitch, 2.0f * M_PI);
+            app->m_camera_yaw = std::fmod(app->m_camera_yaw, 2.0f * M_PI);
         }
         if (app->m_right_mouse_pressed) {
             app->m_camera_distance += delta_y * 0.001f;
@@ -93,11 +103,9 @@ class GlApp {
         m_rotation = Matrix4x4();
         m_scale = Matrix4x4();
         m_scale.set_scale(0.05f, 0.05f, 0.05f);
-        m_angle = 0.0f;
         m_projection.set_perspective(fov, aspect_ratio, z_near, z_far);
         Vec3f center = m_mesh->get_bounding_box_center();
         m_translation.set_translation(-center.x, -center.y, -center.z);
-        //m_projection.set_orthographic(-1.0f, 1.0f, -1.0f, 1.0f, z_near, z_far);
     }
     ~GlApp() {}
 
@@ -225,7 +233,7 @@ class GlApp {
         glfwGetFramebufferSize(m_window, &m_width, &m_height);
         glViewport(0, 0, m_width, m_height);
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-        m_rotation.set_rotation_y(m_angle);
+        m_rotation.set_rotation_x(-m_angle);
         m_view.set_view(m_camera_distance, m_camera_yaw, m_camera_pitch);
         m_mvp = m_projection * m_view * m_rotation * m_scale * m_translation;
         m_mesh->draw(m_mvp);
