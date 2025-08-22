@@ -32,7 +32,7 @@ class GlApp {
     Matrix4x4 m_scale;
     Matrix4x4 m_translation;
     GLuint m_mvp_uniform_location;
-    float m_angle = 0.0f;
+    float m_angle = M_PI / 2.0f;
     Matrix4x4 m_view;
     Matrix4x4 m_projection;
     float z_near = 0.01f;
@@ -46,7 +46,7 @@ class GlApp {
     bool m_left_mouse_pressed = false;
     bool m_right_mouse_pressed = false;
     bool m_orthographic = false;
-    float m_orthographic_size = 1.0f;
+    float m_orthographic_size = 2.0f;
     static void key_callback(GLFWwindow* window, int key, int scancode, int action, int mods) {
         GlApp* app = (GlApp*)glfwGetWindowUserPointer(window);
         if (key == GLFW_KEY_ESCAPE && action == GLFW_PRESS) {
@@ -55,7 +55,9 @@ class GlApp {
         if (key == GLFW_KEY_F9 && action == GLFW_PRESS) {
             app->m_orthographic = !app->m_orthographic;
             if (app->m_orthographic) {
-                app->m_projection.set_orthographic(-app->m_orthographic_size, app->m_orthographic_size, -app->m_orthographic_size, app->m_orthographic_size, app->z_near, app->z_far);
+                app->m_projection.set_orthographic(-app->m_orthographic_size, app->m_orthographic_size,
+                    -app->m_orthographic_size, app->m_orthographic_size,
+                    -app->m_orthographic_size, app->m_orthographic_size);
             } else {
                 app->m_projection.set_perspective(app->fov, app->aspect_ratio, app->z_near, app->z_far);
             }
@@ -88,7 +90,6 @@ class GlApp {
         }
         if (app->m_right_mouse_pressed) {
             app->m_camera_distance += delta_y * 0.001f;
-            app->m_camera_distance = std::clamp(app->m_camera_distance, app->z_near, app->z_far);
         }
     }
 
