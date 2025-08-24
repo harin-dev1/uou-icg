@@ -10,6 +10,7 @@ class Matrix4x4 {
         Matrix4x4(const Matrix4x4& other);
         Matrix4x4& operator=(const Matrix4x4& other);
         Matrix4x4 operator*(const Matrix4x4& other) const;
+        Vec3f operator*(const Vec3f& vector) const;
         float* data();
         const float* data() const;
         float& at(int row, int col);

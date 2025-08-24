@@ -89,4 +89,7 @@ class Vec3f {
     static Vec3f max(const Vec3f& a, const Vec3f& b) {
         return Vec3f(std::max(a.x, b.x), std::max(a.y, b.y), std::max(a.z, b.z));
     }
+    const float* data() const {
+        return &x;
+    }
 };

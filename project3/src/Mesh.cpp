@@ -24,6 +24,11 @@ Mesh::Mesh(const std::string& filename, GLuint shader_program) {
     m_shader_program = shader_program;
     m_mvp_uniform_location = glGetUniformLocation(m_shader_program, "mvp");
     m_mv_uniform_location = glGetUniformLocation(m_shader_program, "mv");
+    m_light_pos_uniform_location = glGetUniformLocation(m_shader_program, "light_position");
+    m_light_intensity_ambient_uniform_location = glGetUniformLocation(m_shader_program, "light_intensity_ambient");
+    m_light_intensity_diffuse_uniform_location = glGetUniformLocation(m_shader_program, "light_intensity_diffuse");
+    m_kd_uniform_location = glGetUniformLocation(m_shader_program, "kd");
+    m_ks_uniform_location = glGetUniformLocation(m_shader_program, "ks");
     calculate_bounding_box_center();
 }
 
@@ -110,10 +115,15 @@ Vec3f Mesh::get_bounding_box_center() const {
     return m_bounding_box_center;
 }
 
-void Mesh::draw(const Matrix4x4& mvp, const Matrix4x4& mv) {
+void Mesh::draw(const Matrix4x4& model, const Matrix4x4& view, const Matrix4x4& projection, const Light& light) {
     glUseProgram(m_shader_program);
-    glUniformMatrix4fv(m_mvp_uniform_location, 1, GL_TRUE, mvp.data());
-    glUniformMatrix4fv(m_mv_uniform_location, 1, GL_TRUE, mv.data());
+    glUniformMatrix4fv(m_mvp_uniform_location, 1, GL_TRUE, (projection * view * model).data());
+    glUniformMatrix4fv(m_mv_uniform_location, 1, GL_TRUE, (view * model).data());
+    glUniform3fv(m_light_pos_uniform_location, 1, (view * Vec3f(light.position.x, light.position.y, light.position.z)).data());
+    glUniform3fv(m_light_intensity_ambient_uniform_location, 1, light.intensity_ambient.data());
+    glUniform3fv(m_light_intensity_diffuse_uniform_location, 1, light.intensity_diffuse.data());
+    glUniform3fv(m_kd_uniform_location, 1, light.diffuse_color.data());
+    glUniform3fv(m_ks_uniform_location, 1, light.specular_color.data());
     glBindVertexArray(m_vao);
     glDrawElements(GL_TRIANGLES, m_indices.size(), GL_UNSIGNED_INT, 0);
 }

@@ -33,6 +33,14 @@ Matrix4x4 Matrix4x4::operator*(const Matrix4x4& other) const {
     return result;
 }
 
+Vec3f Matrix4x4::operator*(const Vec3f& vector) const {
+    Vec3f result;
+    result.x = m_elements[0] * vector.x + m_elements[1] * vector.y + m_elements[2] * vector.z + m_elements[3];
+    result.y = m_elements[4] * vector.x + m_elements[5] * vector.y + m_elements[6] * vector.z + m_elements[7];
+    result.z = m_elements[8] * vector.x + m_elements[9] * vector.y + m_elements[10] * vector.z + m_elements[11];
+    return result;
+}
+
 float* Matrix4x4::data() {
     return m_elements.data();
 }
