@@ -1,0 +1,1 @@
+This repository contains my attempt to complete the projects associated with University of Utah's [Interactive Computer Graphics CS 5610/6610](https://www.youtube.com/playlist?list=PLplnkTzzqsZS3R5DjmCQsqupu43oS9CFN) by Cem Yuksel.
