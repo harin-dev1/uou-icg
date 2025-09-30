@@ -1,24 +1,28 @@
 # Simple Makefile for project2-new
 CXX = g++
-CXXFLAGS = -std=c++20 -Wall -O2 -Iinclude -I../cyCodebase
+CXXFLAGS = -std=c++20 -Wall -g -O0 -Iinclude -I../cyCodebase -I../lodepng
 TARGET = main
-SOURCES = src/main.cpp
+SOURCES = src/main.cpp ../lodepng/lodepng.cpp
 LIBS = -lglfw -lGLEW -lGL -lEGL -lm
 OUT = out
+ARGS ?= 
 
-# Build target
+# Build target (just compile, don't run)
 $(TARGET): $(SOURCES)
 	mkdir -p $(OUT)
 	$(CXX) $(CXXFLAGS) $(SOURCES) -o $(OUT)/$(TARGET) $(LIBS)
+
+# Build and run immediately
+build-run: $(TARGET)
 	./$(OUT)/$(TARGET)
 
 # Clean
 clean:
 	rm -rf $(OUT)
 
-# Run
+# Run with optional arguments
 run: $(TARGET)
-	./$(OUT)/$(TARGET)
+	./$(OUT)/$(TARGET) $(ARGS)
 
 # Pow example
 pow_example: pow_example.cpp
