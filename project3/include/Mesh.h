@@ -26,6 +26,7 @@ class Mesh {
     GLuint m_light_intensity_diffuse_uniform_location;
     GLuint m_kd_uniform_location;
     GLuint m_ks_uniform_location;
+    GLuint m_view_matrix_uniform_location;
     GLuint m_shader_program;
     bool load_mesh(const std::string& filename);
     void calculate_bounding_box_center();

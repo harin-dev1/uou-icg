@@ -29,6 +29,7 @@ Mesh::Mesh(const std::string& filename, GLuint shader_program) {
     m_light_intensity_diffuse_uniform_location = glGetUniformLocation(m_shader_program, "light_intensity_diffuse");
     m_kd_uniform_location = glGetUniformLocation(m_shader_program, "kd");
     m_ks_uniform_location = glGetUniformLocation(m_shader_program, "ks");
+    m_view_matrix_uniform_location = glGetUniformLocation(m_shader_program, "view_matrix");
     calculate_bounding_box_center();
 }
 
@@ -122,8 +123,9 @@ void Mesh::draw(const Matrix4x4& model, const Matrix4x4& view, const Matrix4x4& 
     glUniform3fv(m_light_pos_uniform_location, 1, (view * Vec3f(light.position.x, light.position.y, light.position.z)).data());
     glUniform3fv(m_light_intensity_ambient_uniform_location, 1, light.intensity_ambient.data());
     glUniform3fv(m_light_intensity_diffuse_uniform_location, 1, light.intensity_diffuse.data());
-    glUniform3fv(m_kd_uniform_location, 1, light.diffuse_color.data());
-    glUniform3fv(m_ks_uniform_location, 1, light.specular_color.data());
+    glUniform3fv(m_kd_uniform_location, 1, light.material_diffuse_color.data());
+    glUniform3fv(m_ks_uniform_location, 1, light.material_specular_color.data());
+    glUniformMatrix4fv(m_view_matrix_uniform_location, 1, GL_TRUE, view.data());
     glBindVertexArray(m_vao);
     glDrawElements(GL_TRIANGLES, m_indices.size(), GL_UNSIGNED_INT, 0);
 }

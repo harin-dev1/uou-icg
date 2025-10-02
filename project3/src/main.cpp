@@ -43,7 +43,7 @@ class GlApp {
     Light m_light;
     float m_light_pos_yaw = 0.0f;
     float m_light_pos_pitch = 0.0f;
-
+    float m_light_pos_distance = 5.0f;
     bool m_left_mouse_pressed = false;
     bool m_right_mouse_pressed = false;
     bool m_orthographic = false;
@@ -107,9 +107,9 @@ class GlApp {
             app->m_light_pos_pitch = std::fmod(app->m_light_pos_pitch, 2.0f * M_PI);
             app->m_light_pos_yaw = std::fmod(app->m_light_pos_yaw, 2.0f * M_PI);
             app->m_light.position = Vec3f(
-                std::cos(app->m_light_pos_yaw) * std::cos(app->m_light_pos_pitch),
-                std::sin(app->m_light_pos_pitch),
-                std::sin(app->m_light_pos_yaw) * std::cos(app->m_light_pos_pitch)
+                app->m_light_pos_distance * std::cos(app->m_light_pos_yaw) * std::cos(app->m_light_pos_pitch),
+                app->m_light_pos_distance * std::sin(app->m_light_pos_pitch),
+                app->m_light_pos_distance * std::sin(app->m_light_pos_yaw) * std::cos(app->m_light_pos_pitch)
             );
         }
     }
@@ -128,11 +128,11 @@ class GlApp {
         m_projection.set_perspective(fov, aspect_ratio, z_near, z_far);
         Vec3f center = m_mesh->get_bounding_box_center();
         m_translation.set_translation(-center.x, -center.y, -center.z);
-        m_light.position = Vec3f(0.0f, 10.0f, 1.0f);
+        m_light.position = Vec3f(0.0f, 0.0f, m_light_pos_distance);
         m_light.intensity_ambient = Vec3f(0.1f, 0.1f, 0.1f);
         m_light.intensity_diffuse = Vec3f(1.0f, 1.0f, 1.0f);
-        m_light.diffuse_color = Vec3f(1.0f, 0.0f, 0.0f);
-        m_light.specular_color = Vec3f(1.0f, 1.0f, 1.0f);
+        m_light.material_diffuse_color = Vec3f(1.0f, 0.0f, 0.0f);
+        m_light.material_specular_color = Vec3f(1.0f, 1.0f, 1.0f);
     }
     ~GlApp() {}
 
