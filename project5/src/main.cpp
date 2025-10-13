@@ -51,6 +51,7 @@ private:
     GLuint m_square_ibo;
     cy::GLSLProgram m_square_shader_program;
     cy::Matrix4f m_square_view;
+    cy::Matrix4f m_projection;
     bool m_left_alt_pressed = false;
     bool m_right_alt_pressed = false;
     float m_camera_distance = 1.0f;
@@ -132,7 +133,7 @@ private:
         glCreateTextures(GL_TEXTURE_2D, 1, &m_texture_color);
         glTextureStorage2D(m_texture_color, 1, GL_RGBA8, 800, 600);
         glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_MAX_ANISOTROPY, max_anisotropy);
-        glTextureParameteri(m_texture_color, GL_TEXTURE_MAG_FILTER, GL_LINEAR_MIPMAP_LINEAR);
+        glTextureParameteri(m_texture_color, GL_TEXTURE_MIN_FILTER, GL_LINEAR_MIPMAP_LINEAR);
         glNamedFramebufferTexture(m_fbo, GL_COLOR_ATTACHMENT0, m_texture_color, 0);
         glNamedRenderbufferStorage(m_rbo_depth, GL_DEPTH_COMPONENT, 800, 600);
         glNamedFramebufferRenderbuffer(m_fbo, GL_DEPTH_ATTACHMENT, GL_RENDERBUFFER, m_rbo_depth);
@@ -145,10 +146,10 @@ private:
         m_square_shader_program.BuildFiles("shaders/shader.vs", "shaders/shader.fs");
         CY_GL_ERROR;
         std::vector<Vertex> square_vertices = {
-            {{-1.0f, -1.0f, 1.0f}, {0.0f, 0.0f}},
-            {{1.0f, -1.0f, 1.0f}, {1.0f, 0.0f}},
-            {{1.0f, 1.0f, 1.0f}, {1.0f, 1.0f}},
-            {{-1.0f, 1.0f, 1.0f}, {0.0f, 1.0f}}
+            {{-1.0f, -1.0f, 0.0f}, {0.0f, 0.0f}},
+            {{1.0f, -1.0f, 0.0f}, {1.0f, 0.0f}},
+            {{1.0f, 1.0f, 0.0f}, {1.0f, 1.0f}},
+            {{-1.0f, 1.0f, 0.0f}, {0.0f, 1.0f}}
         };
         std::vector<uint32_t> square_indices = {0, 1, 2, 0, 2, 3};
         glCreateVertexArrays(1, &m_square_vao);
@@ -170,6 +171,7 @@ private:
         glVertexArrayAttribFormat(m_square_vao, 1, 2, GL_FLOAT, GL_FALSE, offsetof(Vertex, tex_coord));
         glVertexArrayAttribBinding(m_square_vao, 1, 0);
         glEnableVertexArrayAttrib(m_square_vao, 1);
+        m_projection.SetPerspective(45.0f, (float)m_width / (float)m_height, z_near, z_far);
         CY_GL_ERROR;
     }
 
@@ -285,7 +287,7 @@ private:
 
     void render() {
         glBindFramebuffer(GL_FRAMEBUFFER, m_fbo);
-        glClearColor(0.0f, 0.0f, 0.0f, 0.0f);
+        glClearColor(0.0f, 0.0f, 0.0f, 1.0f);
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
         glViewport(0, 0, 800, 600);
         render_mesh();
@@ -293,7 +295,7 @@ private:
 
         glfwGetFramebufferSize(m_window, &m_width, &m_height);
         glViewport(0, 0, m_width, m_height);
-        glClearColor(0.5f, 0.5f, 0.5f, 1.0f);
+        glClearColor(0.0f, 0.0f, 0.0f, 1.0f);
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
         render_square();
     }
@@ -304,7 +306,7 @@ private:
         float z = m_camera_distance * std::cos(m_camera_yaw) * std::cos(m_camera_pitch);
         m_square_view.SetView(cy::Vec3f(x, y, z), cy::Vec3f(0.0f, 0.0f, 0.0f), cy::Vec3f(0.0f, 1.0f, 0.0f));
         m_square_shader_program.Bind();
-        m_square_shader_program["mvp"] = m_square_view;
+        m_square_shader_program["mvp"] = m_projection * m_square_view;
         m_square_shader_program["texture_color"] = 0;
         glActiveTexture(GL_TEXTURE0);
         glBindTexture(GL_TEXTURE_2D, m_texture_color);
