@@ -110,6 +110,7 @@ private:
         m_model_shader_program["projection"] = m_projection;
         m_model_shader_program["cameraPos"] = cy::Vec3f(x, y, z);
         m_model_shader_program["skybox"] = 0;
+        m_model_shader_program["light_position"] = cy::Vec3f(1.0f, 1.0f, 10.0f);
         glActiveTexture(GL_TEXTURE0);
         glBindTexture(GL_TEXTURE_CUBE_MAP, m_cubemap_texture);
         glBindVertexArray(m_model_vao);
