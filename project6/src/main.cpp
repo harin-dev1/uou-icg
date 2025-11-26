@@ -24,13 +24,16 @@ private:
     GLuint m_cubemap_vbo;
     GLuint m_cubemap_ibo;
     cy::GLSLProgram m_cubemap_shader_program;
-
+    cy::GLSLProgram m_rectangle_shader_program;
+    GLuint m_rectangle_vao;
+    GLuint m_rectangle_vbo;
+    GLuint m_rectangle_ibo;
     GLuint m_model_vao;
     GLuint m_model_vbo;
     GLuint m_model_ibo;
     cyTriMesh m_model_mesh;
     cy::GLSLProgram m_model_shader_program;
-
+    cy::Matrix4f m_model_matrix_reflection;
     cy::Matrix4f m_model_matrix;
     cy::Matrix4f m_view;
     cy::Matrix4f m_projection;
@@ -38,6 +41,7 @@ private:
     float m_camera_distance = 2.0f;
     float m_camera_yaw = 0.0f;
     float m_camera_pitch = 0.0f;
+    cy::Vec3f m_camera_pos;
     bool m_left_mouse_pressed = false;
     public:
     GlApp(int width, int height, std::string title) : m_width(width), m_height(height), m_title(title) {
@@ -46,6 +50,7 @@ private:
         init_gl_state();
         init_cubemap_texture();
         init_cubemap_mesh();
+        init_rectangle();
         m_view = cy::Matrix4f::Identity();
         m_projection = cy::Matrix4f::Identity();
         m_projection.SetPerspective(45.0f, (float)m_width / (float)m_height, 0.1f, 100.0f);
@@ -53,9 +58,44 @@ private:
 
         init_model_mesh();
         m_model_shader_program.BuildFiles("shaders/model.vs", "shaders/model.fs");
+        m_rectangle_shader_program.BuildFiles("shaders/rectangle.vs", "shaders/rectangle.fs");
     }
     ~GlApp() {}
 
+    void init_rectangle() {
+        std::vector<Vertex> vertices = {
+            {{-1.0f, 0.0f, -1.0f}, {0.0f, 1.0f, 0.0f}},
+            {{1.0f, 0.0f, -1.0f}, {0.0f, 1.0f, 0.0f}},
+            {{1.0f, 0.0f, 1.0f}, {0.0f, 1.0f, 0.0f}},
+            {{-1.0f, 0.0f, 1.0f}, {0.0f, 1.0f, 0.0f}}
+        };
+        std::vector<uint32_t> indices = {0, 1, 2, 0, 2, 3};
+        glCreateVertexArrays(1, &m_rectangle_vao);
+        glCreateBuffers(1, &m_rectangle_vbo);
+        glCreateBuffers(1, &m_rectangle_ibo);
+        glNamedBufferStorage(m_rectangle_vbo, vertices.size() * sizeof(Vertex), vertices.data(), 0);
+        glNamedBufferStorage(m_rectangle_ibo, indices.size() * sizeof(uint32_t), indices.data(), 0);
+        glVertexArrayVertexBuffer(m_rectangle_vao, 0, m_rectangle_vbo, 0, sizeof(Vertex));
+        glVertexArrayElementBuffer(m_rectangle_vao, m_rectangle_ibo);
+        glVertexArrayAttribFormat(m_rectangle_vao, 0, 3, GL_FLOAT, GL_FALSE, offsetof(Vertex, position));
+        glVertexArrayAttribBinding(m_rectangle_vao, 0, 0);
+        glEnableVertexArrayAttrib(m_rectangle_vao, 0);
+        glVertexArrayAttribFormat(m_rectangle_vao, 1, 3, GL_FLOAT, GL_FALSE, offsetof(Vertex, normal));
+        glVertexArrayAttribBinding(m_rectangle_vao, 1, 0);
+        glEnableVertexArrayAttrib(m_rectangle_vao, 1);
+    }
+    void render_rectangle() {
+        m_rectangle_shader_program.Bind();
+        m_rectangle_shader_program["view"] = m_view;
+        m_rectangle_shader_program["projection"] = m_projection;
+        m_rectangle_shader_program["cubemap"] = 0;
+        m_rectangle_shader_program["cameraPos"] = m_camera_pos;
+        m_rectangle_shader_program["model"] = cy::Matrix4f::Translation(cy::Vec3f(0.0f, -0.244793, 0.0f));
+        glActiveTexture(GL_TEXTURE0);
+        glBindTexture(GL_TEXTURE_CUBE_MAP, m_cubemap_texture);
+        glBindVertexArray(m_rectangle_vao);
+        glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_INT, 0);
+    }
     static void mouse_button_callback(GLFWwindow* window, int button, int action, int mods) {
         GlApp* app = (GlApp*)glfwGetWindowUserPointer(window);
         if (button == GLFW_MOUSE_BUTTON_LEFT) {
@@ -72,7 +112,7 @@ private:
         last_ypos = ypos;
         if (app->m_left_mouse_pressed) {
             app->m_camera_yaw += delta_x * 0.01f;
-            app->m_camera_pitch += delta_y * 0.01f;
+            app->m_camera_pitch -= delta_y * 0.01f;
             app->m_camera_pitch = std::fmod(app->m_camera_pitch, 2.0f * M_PI);
             app->m_camera_yaw = std::fmod(app->m_camera_yaw, 2.0f * M_PI);
         }
@@ -88,6 +128,7 @@ private:
         float x = m_camera_distance * std::sin(m_camera_yaw) * std::cos(m_camera_pitch);
         float y = m_camera_distance * std::sin(m_camera_pitch);
         float z = m_camera_distance * std::cos(m_camera_yaw) * std::cos(m_camera_pitch);
+        m_camera_pos = cy::Vec3f(x, y, z);
         m_view.SetView(cy::Vec3f(x, y, z), cy::Vec3f(0.0f, 0.0f, 0.0f), cy::Vec3f(0.0f, 1.0f, 0.0f));
         m_mvp = m_projection * cy::Matrix4f(cy::Matrix3f(m_view));
         glfwGetFramebufferSize(m_window, &m_width, &m_height);
@@ -105,10 +146,15 @@ private:
         glDrawElements(GL_TRIANGLES, m_cubemap_mesh.NF() * 3, GL_UNSIGNED_INT, 0);
         glDepthMask(GL_TRUE);
         m_model_shader_program.Bind();  
+        render_model();
+        render_model_reflection();
+        render_rectangle();
+    }
+    void render_model() {
         m_model_shader_program["model"] = m_model_matrix;
         m_model_shader_program["view"] = m_view;
         m_model_shader_program["projection"] = m_projection;
-        m_model_shader_program["cameraPos"] = cy::Vec3f(x, y, z);
+        m_model_shader_program["cameraPos"] = m_camera_pos;
         m_model_shader_program["skybox"] = 0;
         m_model_shader_program["light_position"] = cy::Vec3f(1.0f, 1.0f, 10.0f);
         glActiveTexture(GL_TEXTURE0);
@@ -116,6 +162,19 @@ private:
         glBindVertexArray(m_model_vao);
         glDrawElements(GL_TRIANGLES, m_model_mesh.NF() * 3, GL_UNSIGNED_INT, 0);
     }
+    void render_model_reflection() {
+        m_model_shader_program["model"] = m_model_matrix;
+        m_model_shader_program["view"] = m_view * cy::Matrix4f::Scale(1.0f, -1.0f, 1.0f) * cy::Matrix4f::Translation(cy::Vec3f(0.0f, 2 * 0.244793f, 0.0f));
+        m_model_shader_program["projection"] = m_projection;
+        m_model_shader_program["cameraPos"] = m_camera_pos;
+        m_model_shader_program["skybox"] = 0;
+        m_model_shader_program["light_position"] = cy::Vec3f(1.0f, 1.0f, 10.0f);
+        glActiveTexture(GL_TEXTURE0);
+        glBindTexture(GL_TEXTURE_CUBE_MAP, m_cubemap_texture);
+        glBindVertexArray(m_model_vao);
+        glDrawElements(GL_TRIANGLES, m_model_mesh.NF() * 3, GL_UNSIGNED_INT, 0);
+    }
+
     void init_glfw(int width, int height, std::string title) {
         glfwInit();
         glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 4);
@@ -229,7 +288,10 @@ private:
         m_model_mesh.ComputeBoundingBox();
         cy::Vec3f center = m_model_mesh.GetBoundMin() + (m_model_mesh.GetBoundMax() - m_model_mesh.GetBoundMin()) / 2.0f;
         cy::Vec3f size = m_model_mesh.GetBoundMax() - m_model_mesh.GetBoundMin();
+        std::cout << "m_model_mesh.GetBoundMin(): " << m_model_mesh.GetBoundMin().x << ", " << m_model_mesh.GetBoundMin().y << ", " << m_model_mesh.GetBoundMin().z << std::endl;
+        std::cout << "m_model_mesh.GetBoundMax(): " << m_model_mesh.GetBoundMax().x << ", " << m_model_mesh.GetBoundMax().y << ", " << m_model_mesh.GetBoundMax().z << std::endl;
         float max_size = std::max(size.x, std::max(size.y, size.z));
+        std::cout << "max_size: " << max_size << std::endl;
         cy::Matrix4f translation;
         translation.SetTranslation(-center);
         cy::Matrix4f scale;
@@ -241,6 +303,8 @@ private:
             scale.SetScale(1.0f);
         }
         m_model_matrix = cy::Matrix4f::RotationX(-M_PI / 2.0f) * scale * translation;
+        std::cout << "m_model_matrix: " << (m_model_matrix* cy::Vec4f(m_model_mesh.GetBoundMin(), 1.0f)).x << ", " << (m_model_matrix* cy::Vec4f(m_model_mesh.GetBoundMin(), 1.0f)).y << ", " << (m_model_matrix* cy::Vec4f(m_model_mesh.GetBoundMin(), 1.0f)).z << std::endl;
+        std::cout << "m_model_matrix: " << (m_model_matrix* cy::Vec4f(m_model_mesh.GetBoundMax(), 1.0f)).x << ", " << (m_model_matrix* cy::Vec4f(m_model_mesh.GetBoundMax(), 1.0f)).y << ", " << (m_model_matrix* cy::Vec4f(m_model_mesh.GetBoundMax(), 1.0f)).z << std::endl;
     }
 };
 

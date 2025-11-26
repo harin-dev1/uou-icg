@@ -6,6 +6,7 @@ in vec3 Position;
 uniform samplerCube skybox;
 uniform vec3 cameraPos;
 uniform vec3 light_position;
+vec3 light_color = vec3(0.5, 0.5, 0.5);
 void main() {
     vec3 view_dir = normalize(cameraPos - Position);
     vec3 light_dir = normalize(light_position - Position);
@@ -16,7 +17,7 @@ void main() {
     vec3 R = reflect(view_dir * -1.0, normal);
     vec3 skybox_color = texture(skybox, R).rgb;
     vec3 ambient = 0.1 * skybox_color;
-    vec3 diffuse = lambertian * skybox_color;
-    vec3 specular = specular_term * skybox_color;
+    vec3 diffuse = lambertian * skybox_color * light_color;
+    vec3 specular = specular_term * light_color;
     outColor = vec4(ambient + diffuse + specular, 1.0);
 }
