@@ -17,7 +17,7 @@ Mesh::Mesh(const std::string& filename, GLuint shader_program) {
     glVertexArrayAttribFormat(m_vao, 0, 3, GL_FLOAT, GL_FALSE, 0);
     glVertexArrayAttribBinding(m_vao, 0, 0);
     glEnableVertexArrayAttrib(m_vao, 0);
-    glVertexArrayAttribFormat(m_vao, 1, 3, GL_FLOAT, GL_FALSE, 0);
+    glVertexArrayAttribFormat(m_vao, 1, 3, GL_FLOAT, GL_FALSE, offsetof(Vertex, normal));
     glVertexArrayAttribBinding(m_vao, 1, 0);
     glEnableVertexArrayAttrib(m_vao, 1);
     glVertexArrayElementBuffer(m_vao, m_ibo);
@@ -56,7 +56,6 @@ bool Mesh::load_mesh(const std::string& filename) {
             float x, y, z;
             iss >> x >> y >> z;
             positions.push_back(Vec3f(x, y, z));
-            m_vertices.push_back(Vertex{Vec3f(x, y, z)});
         }
         if (type == "vn") {
             float x, y, z;
@@ -104,7 +103,7 @@ bool Mesh::load_mesh(const std::string& filename) {
 
 void Mesh::calculate_bounding_box_center() {
     Vec3f min_point(std::numeric_limits<float>::max(), std::numeric_limits<float>::max(), std::numeric_limits<float>::max());
-    Vec3f max_point(std::numeric_limits<float>::min(), std::numeric_limits<float>::min(), std::numeric_limits<float>::min());
+    Vec3f max_point(std::numeric_limits<float>::lowest(), std::numeric_limits<float>::lowest(), std::numeric_limits<float>::lowest());
     for (const auto& vertex : m_vertices) {
         min_point = Vec3f::min(min_point, vertex.position);
         max_point = Vec3f::max(max_point, vertex.position);
