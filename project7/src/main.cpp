@@ -11,6 +11,14 @@ struct Vertex {
     cy::Vec3f normal;
 };
 
+struct Light {
+    cy::Vec3f position;
+    cy::Vec3f intensity_ambient;
+    cy::Vec3f intensity_diffuse;
+    cy::Vec3f material_diffuse_color;
+    cy::Vec3f material_specular_color;
+};
+
 class GlApp {
 private:
     GLFWwindow* m_window;
@@ -18,16 +26,25 @@ private:
     std::string m_title;
     
     cy::GLSLProgram m_shader_program;
+    cy::GLSLProgram m_shadow_shader_program;
     GLuint m_vao;
     GLuint m_vbo;
     GLuint m_ibo;
     
+    int m_shadow_map_width = 4096;
+    int m_shadow_map_height = 4096;
     cy::Matrix4f m_mesh_model;
     cy::Matrix4f m_rectangle_model;
     cy::Matrix4f m_view;
     cy::Matrix4f m_projection;
     cy::Matrix4f m_mvp;
     cy::Matrix4f m_mesh_mvp;
+    cy::Matrix4f m_mesh_mv;
+    cy::Matrix4f m_shadow_mvp;
+    cy::Matrix4f m_shadow_view;
+    cy::Matrix4f m_shadow_projection;
+    cy::Matrix4f m_shadow_mvp_texture;
+    cy::Matrix4f m_shadow_mvp_texture_rectangle;
     bool m_left_mouse_pressed = false;
     bool m_right_mouse_pressed = false;
     float m_camera_distance = 1.0f;
@@ -42,12 +59,16 @@ private:
     float m_floor_y_position = 0.0f;
     std::string m_mesh_obj_path;
     cy::GLSLProgram m_mesh_shader_program;
+    Light m_light;
+    GLuint m_shadow_map_fbo;
+    GLuint m_shadow_map_texture;
 public:
     GlApp(int width, int height, std::string title, std::string mesh_obj_path) 
         : m_width(width), m_height(height), m_title(title), m_mesh_obj_path(mesh_obj_path) {
         init_glfw();
         init_glew();
         init_gl_state();
+        init_shadow_map();
         init_shaders();
         init_rectangle();
         init_matrices();
@@ -61,6 +82,8 @@ public:
         glDeleteVertexArrays(1, &m_mesh_vao);
         glDeleteBuffers(1, &m_mesh_vbo);
         glDeleteBuffers(1, &m_mesh_ibo);
+        glDeleteFramebuffers(1, &m_shadow_map_fbo);
+        glDeleteTextures(1, &m_shadow_map_texture);
         glfwDestroyWindow(m_window);
         glfwTerminate();
     }
@@ -159,6 +182,16 @@ private:
     void init_shaders() {
         m_shader_program.BuildFiles("shaders/rectangle.vs", "shaders/rectangle.fs");
         m_mesh_shader_program.BuildFiles("shaders/mesh.vs", "shaders/mesh.fs");
+        m_light.position = cy::Vec3f(0.0f, 5.0f, 5.0f);
+        m_light.intensity_ambient = cy::Vec3f(0.1f, 0.1f, 0.1f);
+        m_light.intensity_diffuse = cy::Vec3f(1.0f, 1.0f, 1.0f);
+        m_light.material_diffuse_color = cy::Vec3f(1.0f, 0.0f, 0.0f);
+        m_light.material_specular_color = cy::Vec3f(1.0f, 1.0f, 1.0f);
+        m_mesh_shader_program["light.intensity_ambient"] = m_light.intensity_ambient;
+        m_mesh_shader_program["light.intensity_diffuse"] = m_light.intensity_diffuse;
+        m_mesh_shader_program["light.material_diffuse_color"] = m_light.material_diffuse_color;
+        m_mesh_shader_program["light.material_specular_color"] = m_light.material_specular_color;
+        m_shadow_shader_program.BuildFiles("shaders/shadow.vs", "shaders/shadow.fs");
     }
     
     void init_mesh() {
@@ -262,22 +295,49 @@ private:
         // Combined MVP matrix
         m_mvp = m_projection * m_view * m_rectangle_model;
         m_mesh_mvp = m_projection * m_view * m_mesh_model;
+        m_mesh_mv = m_view * m_mesh_model;
+
+        m_shadow_view.SetView(m_light.position, cy::Vec3f(0.0f, 0.0f, 0.0f), cy::Vec3f(0.0f, 1.0f, 0.0f));
+        m_shadow_projection.SetPerspective(45.0f, (float)m_shadow_map_width / (float)m_shadow_map_height, 0.1f, 100.0f);
+        m_shadow_mvp = m_shadow_projection * m_shadow_view * m_mesh_model;
+        cy::Matrix4f scale_texture;
+        scale_texture.SetScale(0.5f);
+        cy::Matrix4f translation_texture;
+        translation_texture.SetTranslation(cy::Vec3f(0.5f, 0.5f, 0.5f));
+        m_shadow_mvp_texture = translation_texture * scale_texture * m_shadow_projection * m_shadow_view * m_mesh_model;
+        m_shadow_mvp_texture_rectangle = translation_texture * scale_texture * m_shadow_projection * m_shadow_view * m_rectangle_model;
     }
     
     void render() {
+        update_camera();
+        render_shadow_map();
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
         glfwGetFramebufferSize(m_window, &m_width, &m_height);
         glViewport(0, 0, m_width, m_height);
 
         m_rectangle_model.SetTranslation(cy::Vec3f(0.0f, m_floor_y_position, 0.0f));
-        update_camera();
         m_shader_program.Bind();
         m_shader_program["mvp"] = m_mvp;
         
         glBindVertexArray(m_vao);
+        m_shader_program["shadowMVP"] = m_shadow_mvp_texture_rectangle;
+        glActiveTexture(GL_TEXTURE0);
+        glBindTexture(GL_TEXTURE_2D, m_shadow_map_texture);
+        m_shader_program["shadowMap"] = 0;
         glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_INT, 0);
+        glBindTexture(GL_TEXTURE_2D, 0);
+        CY_GL_ERROR;
         m_mesh_shader_program.Bind();
         m_mesh_shader_program["mvp"] = m_mesh_mvp;
+        m_mesh_shader_program["mv"] = m_mesh_mv;
+        m_mesh_shader_program["mshadow"] = m_shadow_mvp_texture;
+        glActiveTexture(GL_TEXTURE0);
+        glBindTexture(GL_TEXTURE_2D, m_shadow_map_texture);
+        m_mesh_shader_program["shadowMap"] = 0;
+        CY_GL_ERROR;
+        // Set light struct members individually (cy::GLSLProgram doesn't support custom structs)
+        cy::Vec4f light_pos_view = m_view * cy::Vec4f(m_light.position, 1.0f);
+        m_mesh_shader_program["light.position_view"] = cy::Vec3f(light_pos_view.x, light_pos_view.y, light_pos_view.z);
         glBindVertexArray(m_mesh_vao);
         glDrawElements(GL_TRIANGLES, m_mesh_indices.size(), GL_UNSIGNED_INT, 0);
     }
@@ -289,6 +349,45 @@ private:
         m_view.SetView(cy::Vec3f(x, y, z), cy::Vec3f(0.0f, 0.0f, 0.0f), cy::Vec3f(0.0f, 1.0f, 0.0f));
         m_mvp = m_projection * m_view * m_rectangle_model;
         m_mesh_mvp = m_projection * m_view * m_mesh_model;
+        m_mesh_mv = m_view * m_mesh_model;
+        m_shadow_view.SetView(m_light.position, cy::Vec3f(0.0f, 0.0f, 0.0f), cy::Vec3f(0.0f, 1.0f, 0.0f));
+        m_shadow_mvp = m_shadow_projection * m_shadow_view * m_mesh_model;
+        cy::Matrix4f scale_texture;
+        scale_texture.SetScale(0.5f);
+        cy::Matrix4f translation_texture;
+        float bias = 0.0001f;
+        translation_texture.SetTranslation(cy::Vec3f(0.5f, 0.5f, 0.5f - bias));
+        m_shadow_mvp_texture = translation_texture * scale_texture * m_shadow_projection * m_shadow_view * m_mesh_model;
+        m_shadow_mvp_texture_rectangle = translation_texture * scale_texture * m_shadow_projection * m_shadow_view * m_rectangle_model;
+    }
+
+    void init_shadow_map() {
+        glCreateFramebuffers(1, &m_shadow_map_fbo);
+        glCreateTextures(GL_TEXTURE_2D, 1, &m_shadow_map_texture);
+        glTextureStorage2D(m_shadow_map_texture, 1, GL_DEPTH_COMPONENT24, m_shadow_map_width, m_shadow_map_height);
+        glTextureParameteri(m_shadow_map_texture, GL_TEXTURE_COMPARE_MODE, GL_COMPARE_REF_TO_TEXTURE);
+        glTextureParameteri(m_shadow_map_texture, GL_TEXTURE_COMPARE_FUNC, GL_LEQUAL);
+        glTextureParameteri(m_shadow_map_texture, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+        glTextureParameteri(m_shadow_map_texture, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+        glTextureParameteri(m_shadow_map_texture, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_BORDER);
+        glTextureParameteri(m_shadow_map_texture, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_BORDER);
+        cy::Vec4f border_color(1.0f, 1.0f, 1.0f, 1.0f);
+        glTextureParameterfv(m_shadow_map_texture, GL_TEXTURE_BORDER_COLOR, &border_color.x);
+        glNamedFramebufferTexture(m_shadow_map_fbo, GL_DEPTH_ATTACHMENT, m_shadow_map_texture, 0);
+        glNamedFramebufferDrawBuffer(m_shadow_map_fbo, GL_NONE);
+        glNamedFramebufferReadBuffer(m_shadow_map_fbo, GL_NONE);
+        CY_GL_ERROR;
+    }
+
+    void render_shadow_map() {
+        glBindFramebuffer(GL_FRAMEBUFFER, m_shadow_map_fbo);
+        glClear(GL_DEPTH_BUFFER_BIT);
+        glViewport(0, 0, m_shadow_map_width, m_shadow_map_height);
+        m_shadow_shader_program.Bind();
+        m_shadow_shader_program["shadowMVP"] = m_shadow_mvp;
+        glBindVertexArray(m_mesh_vao);
+        glDrawElements(GL_TRIANGLES, m_mesh_indices.size(), GL_UNSIGNED_INT, 0);
+        glBindFramebuffer(GL_FRAMEBUFFER, 0);
     }
 };
 

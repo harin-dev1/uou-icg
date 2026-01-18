@@ -3,7 +3,7 @@ CXX = g++
 CXXFLAGS = -std=c++20 -Wall -O2 -I../cyCodebase
 TARGET = main
 SOURCES = src/main.cpp
-LIBS = -lglfw -lGLEW -lGL -lEGL -lm
+LIBS = -lglfw -lGLEW -lGL -lGLU -lEGL -lm
 OUT = out
 
 # Build target
