@@ -26,6 +26,6 @@ void main() {
     }
     vec3 diffuse = light.intensity_diffuse * lambertian * light.material_diffuse_color;
     vec3 specular = light.intensity_diffuse * pow(max(dot(n, half_vector), 0.0), 10.0) * light.material_specular_color;
-    outColor = vec4(ambient + diffuse + specular, 1.0);
-    outColor *= textureProj(shadowMap, fragPositionLightView);
+    float shadow = textureProj(shadowMap, fragPositionLightView);
+    outColor = vec4(ambient + shadow * (diffuse + specular), 1.0);
 }
