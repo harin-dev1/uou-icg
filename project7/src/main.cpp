@@ -70,7 +70,7 @@ private:
     cy::Matrix4f m_shadow_mvp_texture_rectangle;
     bool m_left_mouse_pressed = false;
     bool m_right_mouse_pressed = false;
-    float m_camera_distance = 1.0f;
+    float m_camera_distance = 2.0f;
     float m_camera_yaw = 0.0f;
     float m_camera_pitch = 0.3f;
     MeshData m_teapot;
